@@ -6,7 +6,7 @@ import numpy as np
 #from auxiliary_functions import get_x_any_y_advanced_creative, get_x_any_y, get_x_any_y_years
 import datetime
 
-X_COLUMNS = ['year', 'month', 'day', 'hour']
+X_COLUMNS = ['year', 'month', 'day','day literal', 'hour']
 Y_COLUMN = 'loadrank'
 
 TEST_SIZE = 0.3
@@ -38,6 +38,7 @@ def prepare():
     hrs = []
     dow = []
     dow_list = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    dow_dict = {"Monday":0, "Tuesday":1, "Wednesday":2, "Thursday":3, "Friday":4, "Saturday":5, "Sunday":6}
 
     dt_time = data['Date/Time'].copy(deep=True).to_numpy()
     for i in range(len(dt_time)):
@@ -66,6 +67,7 @@ def prepare():
     data['year'] = yy
     data['hour'] = hrs
     data['day literal'] = dow
+    data = data.replace(dow_dict)
     data['date'] = data['day'] + data['month'] + data['year']
     del data['Date/Time']
     data.to_csv("datasets/uber.csv")
@@ -73,16 +75,16 @@ def prepare():
 def prepare_dataset():
     #prepare()
     df = pd.read_csv("datasets/uber.csv")
-    df = df[['year','month','day','date','hour']]
-    df_agg = df.groupby(['year','month','day','date','hour']).size().reset_index(name='counts')
+    df = df[['year','month','day','day literal','date','hour']]
+    df_agg = df.groupby(['year','month','day','day literal','date','hour']).size().reset_index(name='counts')
     return df_agg
 
 
 def prepare_categorized_dataset():
-    prepare()
+    #prepare()
     df = pd.read_csv("datasets/uber.csv")
-    df = df[['year', 'month', 'day', 'date', 'hour']]
-    df_agg = df.groupby(['year', 'month', 'day', 'date', 'hour']).size().reset_index(name='counts')
+    df = df[['year', 'month', 'day','day literal', 'date', 'hour']]
+    df_agg = df.groupby(['year', 'month', 'day','day literal','date', 'hour']).size().reset_index(name='counts')
     max_count = max(df_agg['counts'])
     # print(max_count)
     max_range = range(max_count)
@@ -91,10 +93,10 @@ def prepare_categorized_dataset():
         lambda x: 0 if x <= quantile[0] else (1 if x <= quantile[1] else (2 if x <= quantile[2] else (3))))
     # print(df_agg)
     df_agg.to_csv("datasets/uber_hour_categorized.csv")
-    #print(df_agg)
+    print(df_agg)
     return df_agg
 #prepare()
-#base_agg()
+
 
 
 def prepare_train_test(categorized=False, scale=True, **kwargs):
@@ -102,7 +104,7 @@ def prepare_train_test(categorized=False, scale=True, **kwargs):
 
     df = prepare_categorized_dataset()
 
-    X = df.drop([Y_COLUMN, 'date','year'], axis=1)
+    X = df.drop([Y_COLUMN,'counts', 'date','year'], axis=1)
     Y = df[Y_COLUMN]
 
     train_x, test_x, train_y, test_y = train_test_split(X, Y, test_size = TEST_SIZE, random_state = seed)
@@ -130,7 +132,7 @@ def prepare_grouped_data(categorized=False, scale=True):
 
     if scale:
         train_set = df[df['date'].isin(train_days)]
-        train_set_x = train_set.drop([Y_COLUMN, 'date','year'], axis=1)
+        train_set_x = train_set.drop([Y_COLUMN, 'counts', 'date','year'], axis=1)
         scalar = StandardScaler()
         scalar.fit(train_set_x)
 
