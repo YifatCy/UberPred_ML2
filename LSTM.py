@@ -1,9 +1,15 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import pickle
 from preprocssing import *
 from preprocssing import train_test_split
+import torch
+import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from auxiliary_functions import create_month_dict
+import numpy as np
 
 class LSTM_Tagger(nn.Module):
     def __init__(self, vector_emb_dim, hidden_dim, num_classes):
@@ -49,7 +55,7 @@ def train_model(verbose=True, hidden_dim=100, X_train=None, y_train=None, X_test
     epochs = epochs
     vector_embedding_dim = X_train[0].shape[1]
     hidden_dim = hidden_dim
-    count_type_size = 3
+    count_type_size = 4
     accumulate_grad_steps = 70
 
     model = LSTM_Tagger(vector_embedding_dim, hidden_dim, count_type_size)
@@ -142,12 +148,7 @@ if __name__ == '__main__':
                     X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test, epochs=epochs)
     print(f'Test accuracy of the model is {acc}')
 
-    import torch
-    import matplotlib.pyplot as plt
-    from mpl_toolkits.axes_grid1 import make_axes_locatable
-    from auxiliary_functions import create_month_dict
-    from data_preprocessing import prepare_grouped_data
-    import numpy as np
+
 
 
     def LSTM_CM(model):
