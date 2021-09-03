@@ -49,9 +49,9 @@ def evaluate(model, device, X_test, y_test):
 
 
 def train_model(verbose=True, hidden_dim=100, X_train=None, y_train=None, X_test=None, y_test=None, epochs=40):
-
     if X_train is None:
         X_train, y_train, X_test, y_test = prepare_grouped_data(scale=True)
+
     epochs = epochs
     vector_embedding_dim = X_train[0].shape[1]
     hidden_dim = hidden_dim

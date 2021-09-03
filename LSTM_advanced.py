@@ -103,7 +103,7 @@ def train_model_advanced(verbose=True, X_train=None, y_train=None, X_test=None, 
     VECTOR_EMBEDDING_DIM = len(X_train[0][0][0])  # number of hours in block * hour vector dim
 
     HIDDEN_DIM = HIDDEN_DIM
-    COUNT_TYPE_SIZE = 3 ** num_of_hours
+    COUNT_TYPE_SIZE = 4 ** num_of_hours
 
     model = LSTM_Advanced_Creative(VECTOR_EMBEDDING_DIM, HIDDEN_DIM, COUNT_TYPE_SIZE)
 
