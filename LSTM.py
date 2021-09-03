@@ -125,7 +125,7 @@ def load_model(model_fname):
     return model
 
 
-def LSTM_error_rate_per_hour(model, mode="percentage"):
+def LSTM_error_rate_per_hour(model):
     _, _, X_test, y_test = prepare_grouped_data(scale=True)
 
     errors = np.zeros(24)
@@ -137,18 +137,11 @@ def LSTM_error_rate_per_hour(model, mode="percentage"):
                 errors[i] += 1
             counts[i] += 1
 
-    if mode == "percentage":
-        error_rate = errors / np.sum(errors)
-    else:
-        error_rate = errors / counts
+    error_rate = errors / np.sum(errors)
 
     plt.bar(np.arange(1, 25), error_rate)
     plt.xticks(np.arange(1, 25))
-    if mode == "percentage":
-        plt.title('LSTM Error Distribution among the hours')
-    else:
-        plt.title('LSTM Error Rate per Hour')
-
+    plt.title('LSTM Error Distribution - hourly')
     plt.show()
 
 
