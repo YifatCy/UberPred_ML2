@@ -85,7 +85,7 @@ def group_by_borough(df):
 
 
 def prepare_categorized_dataset():
-    #prepare()
+    prepare()
     df = change_to_numbers()
     # to group_by_borough
     df = group_by_borough(df)
