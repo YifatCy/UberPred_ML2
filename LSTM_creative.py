@@ -8,8 +8,9 @@ from preprocssing import train_test_split
 import torch
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from auxiliary_functions import create_month_dict
+from utils import *
 import numpy as np
+import copy
 
 class LSTM_Tagger(nn.Module):
     def __init__(self, vector_emb_dim, hidden_dim, num_classes):
@@ -50,7 +51,7 @@ def evaluate(model, device, X_test, y_test):
 
 def train_model(verbose=True, hidden_dim=100, X_train=None, y_train=None, X_test=None, y_test=None, epochs=40):
     if X_train is None:
-        X_train, y_train, X_test, y_test = prepare_grouped_data_over(scale=True)
+        X_train, y_train, X_test, y_test = prepare_grouped_data(scale=True)
 
     epochs = epochs
     vector_embedding_dim = X_train[0].shape[1]
@@ -125,13 +126,8 @@ def load_model(model_fname):
     return model
 
 
-def FindMaxLength(lst):
-    maxLength = max(len(x) for x in lst)
-    return maxLength
-
-
 def LSTM_error_rate_per_hour(model):
-    _, _, X_test, y_test = prepare_grouped_data(scale=True)
+    _, _, X_test, y_test = prepare_grouped_data_creative(scale=True)
 
     errors = np.zeros(24)
     counts = np.zeros(24)
@@ -146,22 +142,51 @@ def LSTM_error_rate_per_hour(model):
 
     plt.bar(np.arange(1, 25), error_rate)
     plt.xticks(np.arange(1, 25))
-    plt.title('LSTM over sampling, Error Distribution - hourly')
+    plt.title('LSTM Error Distribution - hourly')
     plt.show()
+
+def LSTM_error_rate_per_borough(model):
+    _, _, X_test, y_test = prepare_grouped_data_creative(scale=False)
+    boroughs_errors = {}
+    boroughs_counts = {}
+    for x, y in zip(X_test, y_test):
+        _, predictions = torch.max(model(x), 1)
+        borough = HashableArray(x[0])
+        errors = np.zeros(25)
+        counts = np.zeros(25)
+        for i in range(len(x)):
+            if predictions[i] != y[i]:
+                errors[i] += 1
+                err = copy.deepcopy(errors)
+                boroughs_errors[borough] = err
+            counts[i] += 1
+            cnts = copy.deepcopy(counts)
+            boroughs_counts[borough] = cnts
+
+    for borough in boroughs_counts.keys():
+        boroughs_dict = get_boroughs_dict()
+        if borough in boroughs_errors.keys():
+            error_rate = boroughs_errors[borough] / np.sum(boroughs_errors[borough])
+        else:
+            error_rate = 0
+        plt.bar(np.arange(1, 25), error_rate)
+        plt.xticks(np.arange(1, 25))
+        plt.title('LSTM Error Distribution - hourly for borough',boroughs_dict[int(key)])
+        plt.show()
+
 
 
 if __name__ == '__main__':
-
-    X_train, y_train, X_test_and_validation, y_test_and_validation = prepare_grouped_data_over(scale=True)
+    X_train, y_train, X_test_and_validation, y_test_and_validation = prepare_grouped_data_creative(scale=False)
     X_validation, X_test, y_validation, y_test = train_test_split(X_test_and_validation, y_test_and_validation, test_size=2 / 3,                                                                      random_state=57)
 
 
     print('Validation started')
     best_acc = 0
-    best_dim = 50
-    epochs = 40
+    best_dim = 1
+    epochs = 1
 
-    for hidden_dim in [50, 100, 200]:
+    for hidden_dim in [1]:
         print('---------------------------')
         print(f'Hidden dim: {hidden_dim}')
         _, acc = train_model(verbose=True, hidden_dim=hidden_dim,
@@ -173,3 +198,4 @@ if __name__ == '__main__':
                     X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test, epochs=epochs)
     print(f'Test accuracy of the model is {acc}')
 
+LSTM_error_rate_per_borough(model)
