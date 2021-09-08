@@ -139,3 +139,7 @@ class HashableArray(ndarray):
 
     def __eq__(self, other):
         return all(array(self) == array(other))
+
+class hashabledict(dict):
+    def __hash__(self):
+        return hash(tuple(sorted(self.items())))

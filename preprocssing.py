@@ -154,78 +154,101 @@ def value_to_index(lst):
 
     return res
 
+
 def over_sampling():
     ## over sampling
     data = prepare_categorized_dataset()
-    num_0 = len(data[data[Y_COLUMN] == 0])
-    num_1 = len(data[data[Y_COLUMN] == 1])
-    num_2 = len(data[data[Y_COLUMN] == 2])
-    num_3 = len(data[data[Y_COLUMN] == 3])
-    #ratio = num_1 / num_0
-    new_data = pd.DataFrame(columns=data.columns)
-    cnt = 0
-    for idx,point in data.iterrows():
-        # reshaped_point = point.reshape(1, -1)
-        if point[Y_COLUMN] == 0 or point[Y_COLUMN] == 1:
-            new_data.loc[-1] = point
-            new_data.index = new_data.index + 1
-            continue
+    num_0 = data[data[Y_COLUMN] == 0]
+    #print('num_0',num_0)
+    num_1 = data[data[Y_COLUMN] == 1]
+    num_2 = data[data[Y_COLUMN] == 2]
+    num_3 = data[data[Y_COLUMN] == 3]
+    y_2 = np.unique(num_2['date'])
+    y_3 = np.unique(num_3['date'])
+    count=0
+    new = pd.DataFrame(columns=data.columns)
+    for i in y_2:
         p = np.random.rand()
         if p > 0.5:
-            cnt += 1
-            new_data.loc[-1] = point
-            new_data.index = new_data.index + 1
-            new_data.loc[-1] = point
-            new_data.index = new_data.index + 1
-        else:
-            new_data.loc[-1] = point
-            new_data.index = new_data.index + 1
-    print('cnt ', cnt)
+            count += 1
+            temp = data[data['date']==i]
+            temp = temp.replace(2015,str(2016))
+            temp['date'] = temp.apply(lambda row: str(row['year'])+str(row['month'])+str(row['day']),axis=1)
+            #print(temp)
+            new = pd.concat([new,temp])
+
+    for i in y_3:
+        p = np.random.rand()
+        if p > 0.5:
+            count += 1
+            temp = data[data['date']==i]
+            temp = temp.replace(2015,str(2016))
+            temp['date'] = temp.apply(lambda row: str(row['year'])+str(row['month'])+str(row['day']),axis=1)
+            #print(temp)
+            new = pd.concat([new,temp])
+    new_data=pd.concat([new,data])
+    print('cnt ', count)
     print('over sampling ',len(new_data))
     #new_data = shuffle(new_data)
     for i in ['date','hour', 'month','day', 'day_literal', 'year','spd', 'temp', 'dewp', 'hday','pickups','loadrank']:
         new_data[i] = new_data[i].astype(int)
-    new_data.to_csv('over_sampling.csv')
+    new_data.to_csv('over_sampling.csv',index=False)
     print('over_sampling',new_data)
     df = new_data.groupby('loadrank')['pickups'].count().reset_index(name='sum_uber_pickups')
     df = df.set_index('loadrank')
-    df.plot.bar(rot=0, title=f"Hist of Hours per Category [0, 1, 2, 3]", alpha=0.7, color='salmon')
+    df.plot.bar(rot=0, title=f"Hist of Hours per Category  [0, 1, 2, 3]\n Over", alpha=0.7, color='salmon')
     plt.ylabel('Sum Hours')
     plt.xlabel('Category')
     #plt.savefig('figures/hist_per_each_category.png')
     plt.show()
     return new_data
 
+
 def under_sampling():
     ## under sampling
     data = prepare_categorized_dataset()
-    # num_0 = len(data[data['song_popularity'] == 0])
-    # num_1 = len(data[data['song_popularity'] == 1])
-    # ratio = num_1 / num_0
-    new_data = pd.DataFrame(columns=data.columns)
-    cnt = 0
-    for idx,point in data.iterrows():
-        # reshaped_point = point.reshape(1, -1)
-        if point[Y_COLUMN] == 3 or point[Y_COLUMN] == 2:
-            new_data.loc[-1] = point
-            new_data.index = new_data.index + 1
+    num_0 = data[data[Y_COLUMN] == 0]
+    #print('num_0',num_0)
+    num_1 = data[data[Y_COLUMN] == 1]
+    num_not = pd.concat([num_1,num_0])
+    #print(num_not)
+    num_not_date = list(np.unique(num_not[['date']]))
+    #print(len(num_not_date))
+    num_2 = data[data[Y_COLUMN] == 2]
+    num_3 = data[data[Y_COLUMN] == 3]
+    y_2 = np.unique(num_2['date'])
+    y_3 = np.unique(num_3['date'])
+    y_not = []
+    for i in num_not_date:
+        if i in y_2:
             continue
+        if i in y_3:
+            continue
+        else:
+            y_not += [i]
+    #print(len(y_not))
+    #print(y_not)
+    new_data = pd.DataFrame(columns=data.columns)
+    for i in y_2:
+        temp = data[data['date'] == i]
+        new_data = pd.concat([new_data,temp])
+    for i in y_3:
+        temp = data[data['date'] == i]
+        new_data = pd.concat([new_data,temp])
+    cnt = 0
+    for i in y_not:
         p = np.random.rand()
         if p >= 0.5:
             cnt += 1
-            new_data.loc[-1] = point
-            new_data.index = new_data.index + 1
-    print('cnt ', cnt)
-    print('under sampling ', len(new_data))
+            temp = data[data['date'] == i]
+            new_data = pd.concat([new_data,temp])
     #new_data = shuffle(new_data)
     for i in ['date','hour', 'month','day', 'day_literal', 'year','spd', 'temp', 'dewp', 'hday','pickups','loadrank']:
         new_data[i] = new_data[i].astype(int)
-    print('under_sampling',new_data)
-    new_data.to_csv('under_sampling.csv')
-    print('over_sampling',new_data)
+    new_data.to_csv('under_sampling.csv',index=False)
     df = new_data.groupby('loadrank')['pickups'].count().reset_index(name='sum_uber_pickups')
     df = df.set_index('loadrank')
-    df.plot.bar(rot=0, title=f"Hist of Hours per Category [0, 1, 2, 3]", alpha=0.7, color='salmon')
+    df.plot.bar(rot=0, title=f"Hist of Hours per Category  [0, 1, 2, 3]\n Under", alpha=0.7, color='salmon')
     plt.ylabel('Sum Hours')
     plt.xlabel('Category')
     #plt.savefig('figures/hist_per_each_category.png')
@@ -297,6 +320,9 @@ def prepare_categorized_dataset_creative():
 def get_boroughs_dict():
     return {"Bronx": 0, "Brooklyn": 1, "EWR": 2, "Manhattan": 3, "Queens": 4, "Staten Island": 5, "NA": 6}
 
+def get_boroughs_dict_reversed():
+    return {0: "Bronx", 1:"Brooklyn", 2: "EWR", 3: "Manhattan", 4: "Queens", 5: "Staten Island", 6: "NA"}
+
 def get_x_any_y_creative(df, dates, y_column):
     x, y = [], []
     day_bor_df = pd.DataFrame()
@@ -305,9 +331,9 @@ def get_x_any_y_creative(df, dates, y_column):
         for date in dates:
             day_df = df[df['date'] == date]
             day_bor_df = day_df[day_df['borough'] == bor]
-            print(day_bor_df)
-            x.append(day_bor_df.drop([y_column,'pickups','date','year'], axis=1).to_numpy())
-            y.append(day_bor_df[y_column].to_numpy())
+            if not day_bor_df.empty:
+                x.append(day_bor_df.drop([y_column,'pickups','date','year'], axis=1).to_numpy())
+                y.append(day_bor_df[y_column].to_numpy())
     return x, y
 
 def prepare_grouped_data_creative(scale=True):
@@ -319,7 +345,6 @@ def prepare_grouped_data_creative(scale=True):
 
     train_x, train_y = get_x_any_y_creative(df, train_days, Y_COLUMN)
     test_x, test_y = get_x_any_y_creative(df, test_days, Y_COLUMN)
-    print(train_x,'\n',train_y,'\n',test_x,'\n',test_y)
     if scale:
         train_set = df[df['date'].isin(train_days)]
         train_set_x = train_set.drop([Y_COLUMN, "pickups", 'date','year'], axis=1)
@@ -331,4 +356,3 @@ def prepare_grouped_data_creative(scale=True):
         return scaled_train_x, train_y, scaled_test_x, test_y
 
     return train_x, train_y, test_x, test_y
-prepare_grouped_data_creative()

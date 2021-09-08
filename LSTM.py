@@ -8,7 +8,6 @@ from preprocssing import train_test_split
 import torch
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from auxiliary_functions import create_month_dict
 import numpy as np
 
 class LSTM_Tagger(nn.Module):
@@ -48,7 +47,7 @@ def evaluate(model, device, X_test, y_test):
     return acc
 
 
-def train_model(verbose=True, hidden_dim=100, X_train=None, y_train=None, X_test=None, y_test=None, epochs=40):
+def train_model(verbose=True, hidden_dim=80, X_train=None, y_train=None, X_test=None, y_test=None, epochs=40):
     if X_train is None:
         X_train, y_train, X_test, y_test = prepare_grouped_data(scale=True)
 
@@ -56,7 +55,7 @@ def train_model(verbose=True, hidden_dim=100, X_train=None, y_train=None, X_test
     vector_embedding_dim = X_train[0].shape[1]
     hidden_dim = hidden_dim
     count_type_size = 4
-    accumulate_grad_steps = 70
+    accumulate_grad_steps = 50
 
     model = LSTM_Tagger(vector_embedding_dim, hidden_dim, count_type_size)
 
@@ -153,18 +152,17 @@ if __name__ == '__main__':
 
     print('Validation started')
     best_acc = 0
-    best_dim = 50
+    hidden_dim = 50
     epochs = 40
 
-    for hidden_dim in [50, 100, 200]:
-        print('---------------------------')
-        print(f'Hidden dim: {hidden_dim}')
-        _, acc = train_model(verbose=True, hidden_dim=hidden_dim,
-                    X_train=X_train, y_train=y_train, X_test=X_validation, y_test=y_validation, epochs=epochs)
-        best_acc, best_dim = (acc, hidden_dim) if acc > best_acc else (best_acc, best_dim)
 
-    print(f'Best accuracy: {best_acc}\tBest dim: {best_dim}')
-    model, acc = train_model(verbose=True, hidden_dim=best_dim,
+    print('---------------------------')
+    print(f'Hidden dim: {hidden_dim}')
+    _, acc = train_model(verbose=True, hidden_dim=hidden_dim,
+                X_train=X_train, y_train=y_train, X_test=X_validation, y_test=y_validation, epochs=epochs)
+
+    print(f' Train accuracy: {acc}\t Dimension: {hidden_dim}')
+    model, acc = train_model(verbose=True, hidden_dim=hidden_dim,
                     X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test, epochs=epochs)
     print(f'Test accuracy of the model is {acc}')
 
