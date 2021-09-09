@@ -224,7 +224,7 @@ def hist_of_loads():
     #plt.savefig('figures/hist_per_each_category.png')
     #df.plot.bar()
     #plt.show()
-hist_of_loads()
+
 def under_sampling():
     ## under sampling
     data = prepare_categorized_dataset()
