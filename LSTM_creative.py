@@ -74,7 +74,7 @@ def train_model(verbose=True, hidden_dim=100, X_train=None, y_train=None, X_test
     epochs = epochs
     vector_embedding_dim = X_train[0].shape[1]
     hidden_dim = hidden_dim
-    count_type_size = 4
+    count_type_size = 7
     accumulate_grad_steps = 70
 
     model = LSTM_Tagger(vector_embedding_dim, hidden_dim, count_type_size)
@@ -213,7 +213,8 @@ if __name__ == '__main__':
     best_acc = 0
     hidden_dim = 50
     epochs = 40
-
+    #hidden_dim = 1
+    #epochs = 1
 
     print('---------------------------')
     print(f'Hidden dim: {hidden_dim}')

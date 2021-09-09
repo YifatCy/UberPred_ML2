@@ -203,7 +203,28 @@ def over_sampling():
     plt.show()
     return new_data
 
+def hist_of_loads():
+    df = pd.read_csv("datasets/uber_hour_categorized_by_borough1.csv")
+    df = df[['borough','loadrank']]
 
+
+    for b in ['Bronx','Brooklyn','EWR','Manhattan','Queens','Staten Island']:
+        df1 = df[df['borough'] == b ]
+        df1 = df1['loadrank']
+        plt.hist(df1,label=b,alpha=0.5)
+    plt.xticks((0,1,2,3))
+    plt.legend(loc='upper right')
+    plt.show()
+    #df.plot.hist(x='loadrank',)
+    #plt.hist(df)
+    #df.plot.hist(columns='borough')
+    #df.plot.bar(rot=0, title=f"Hist of Hours per Category  [0, 1, 2, 3]\n", alpha=0.7, color='salmon')
+    #plt.ylabel('Sum Hours')
+    #plt.xlabel('Category')
+    #plt.savefig('figures/hist_per_each_category.png')
+    #df.plot.bar()
+    #plt.show()
+hist_of_loads()
 def under_sampling():
     ## under sampling
     data = prepare_categorized_dataset()
@@ -310,9 +331,11 @@ def prepare_categorized_dataset_creative():
     df = group_by_borough(df)
     max_count = max(df['pickups'])
     max_range = range(max_count)
-    quantile = np.quantile(max_range, q=[0.25, 0.5, 0.75])
+    quantile = np.quantile(max_range, q=[1/7, 2/7, 3/7, 4/7, 5/7, 6/7])
     df['loadrank'] = df["pickups"].apply(
-        lambda x: 0 if x <= quantile[0] else (1 if x <= quantile[1] else (2 if x <= quantile[2] else (3))))
+        lambda x: 0 if x <= quantile[0] else
+        (1 if x <= quantile[1] else (2 if x <= quantile[2] else (3 if x<= quantile[3] else (4 if x <= quantile[4] else (5 if x <= quantile[5]
+            else 6 ))))))
     # print(df_agg)
     df.to_csv("datasets/uber_hour_categorized_by_borough.csv",index=False)
     return df

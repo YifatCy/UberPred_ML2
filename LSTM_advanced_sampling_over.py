@@ -8,7 +8,6 @@ from preprocssing import train_test_split
 import torch
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from auxiliary_functions import create_month_dict
 import numpy as np
 
 class LSTM_Tagger(nn.Module):
