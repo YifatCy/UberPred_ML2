@@ -1,5 +1,7 @@
 import numpy as np
 import itertools
+from hashlib import sha1
+from numpy import all, array, uint8
 
 BEGIN = '*B'
 STOP = '*S'
@@ -123,3 +125,21 @@ def create_month_dict(data):
             months.append(month)
     month_dict = {val: i for i, val in enumerate(sorted(months))}
     return month_dict
+
+
+from numpy import *
+from hashlib import sha1
+
+class HashableArray(ndarray):
+    def __new__(cls, data):
+        return array(data).view(cls)
+
+    def __hash__(self):
+        return int(sha1(self).hexdigest(), 16)
+
+    def __eq__(self, other):
+        return all(array(self) == array(other))
+
+class hashabledict(dict):
+    def __hash__(self):
+        return hash(tuple(sorted(self.items())))

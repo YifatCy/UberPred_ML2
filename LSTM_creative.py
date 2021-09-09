@@ -8,7 +8,11 @@ from preprocssing import train_test_split
 import torch
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from utils import *
 import numpy as np
+import copy
+np.seterr(divide='ignore', invalid='ignore')
+
 
 class LSTM_Tagger(nn.Module):
     def __init__(self, vector_emb_dim, hidden_dim, num_classes):
@@ -46,16 +50,32 @@ def evaluate(model, device, X_test, y_test):
         acc = acc / (len(X_test) * len(X_test[0]))
     return acc
 
+def evaluate_per_borough(model, device, X_test, y_test):
+    acc = 0
+    borough_dict = {}
+    with torch.no_grad():
+        for day_index in range(len(X_test)):
+            borough = X_test[0][0]
+            hours_array = X_test[day_index]
+            counts_tensor = torch.from_numpy(y_test[day_index]).to(device)
+            counts_scores = model(hours_array)
+            _, indices = torch.max(counts_scores, 1)
+            if borough not in borough_dict.keys():
+                borough_dict[borough] = 0
+            borough_dict[borough] += np.sum(counts_tensor.to("cpu").numpy() == indices.to("cpu").numpy())
+        for key,value in borough_dict.items():
+            borough_dict[key] = value / (len(X_test) * len(X_test[0]))
+    return borough_dict
 
-def train_model(verbose=True, hidden_dim=80, X_train=None, y_train=None, X_test=None, y_test=None, epochs=40):
+def train_model(verbose=True, hidden_dim=100, X_train=None, y_train=None, X_test=None, y_test=None, epochs=40):
     if X_train is None:
         X_train, y_train, X_test, y_test = prepare_grouped_data(scale=True)
 
     epochs = epochs
     vector_embedding_dim = X_train[0].shape[1]
     hidden_dim = hidden_dim
-    count_type_size = 4
-    accumulate_grad_steps = 50
+    count_type_size = 7
+    accumulate_grad_steps = 70
 
     model = LSTM_Tagger(vector_embedding_dim, hidden_dim, count_type_size)
 
@@ -125,7 +145,7 @@ def load_model(model_fname):
 
 
 def LSTM_error_rate_per_hour(model):
-    _, _, X_test, y_test = prepare_grouped_data(scale=True)
+    _, _, X_test, y_test = prepare_grouped_data_creative(scale=True)
 
     errors = np.zeros(24)
     counts = np.zeros(24)
@@ -143,18 +163,58 @@ def LSTM_error_rate_per_hour(model):
     plt.title('LSTM Error Distribution - hourly')
     plt.show()
 
+def LSTM_error_rate_per_borough(model):
+    _, _, X_test, y_test = prepare_grouped_data_creative(scale=False)
+    boroughs_errors = {}
+    boroughs_counts = {}
+    #errors = np.zeros(24)
+    #counts = np.zeros(24)
+    for x, y in zip(X_test, y_test):
+        _, predictions = torch.max(model(x), 1)
+        borough = x[0][0]
+        errors = np.zeros(24)
+        counts = np.zeros(24)
+        # check the hourly prediction for each day
+        for i in range(len(x)):
+            if predictions[i] != y[i]:
+                errors[i] += 1
+            counts[i] += 1
+
+        err = copy.deepcopy(errors)
+        if borough not in boroughs_errors.keys():
+            boroughs_errors[borough] = np.zeros(24)
+        boroughs_errors[borough] = np.add(boroughs_errors[borough], err)
+        cnts = copy.deepcopy(counts)
+        if borough not in boroughs_counts.keys():
+            boroughs_counts[borough] = np.zeros(24)
+        boroughs_counts[borough] = np.add(boroughs_counts[borough],cnts)
+
+    for borough in boroughs_counts.keys():
+        boroughs_dict = get_boroughs_dict_reversed()
+        if borough in boroughs_errors.keys():
+            if np.sum(boroughs_errors[borough]) != 0 :
+                error_rate = boroughs_errors[borough] / np.sum(boroughs_errors[borough])
+            else:
+                error_rate = 0
+        else:
+            error_rate = 0
+        plt.bar(np.arange(1, 25), 1-error_rate)
+        plt.xticks(np.arange(1, 25))
+        plt.title('LSTM accuracy Distribution - hourly for ' + str(boroughs_dict[int(borough)]))
+        plt.show()
+        print('Accuracy for ',borough,': ',1-error_rate)
 
 
 if __name__ == '__main__':
-    X_train, y_train, X_test_and_validation, y_test_and_validation = prepare_grouped_data(scale=True)
+    X_train, y_train, X_test_and_validation, y_test_and_validation = prepare_grouped_data_creative(scale=False)
     X_validation, X_test, y_validation, y_test = train_test_split(X_test_and_validation, y_test_and_validation, test_size=2 / 3,                                                                      random_state=57)
-
 
     print('Validation started')
     best_acc = 0
     hidden_dim = 50
     epochs = 40
-
+    #hidden_dim = 1
+    #epochs = 1
 
     print('---------------------------')
     print(f'Hidden dim: {hidden_dim}')
@@ -166,4 +226,4 @@ if __name__ == '__main__':
                     X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test, epochs=epochs)
     print(f'Test accuracy of the model is {acc}')
 
-    LSTM_error_rate_per_hour(model)
+    LSTM_error_rate_per_borough(model)

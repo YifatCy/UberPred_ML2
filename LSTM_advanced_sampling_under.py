@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
 
+
 class LSTM_Tagger(nn.Module):
     def __init__(self, vector_emb_dim, hidden_dim, num_classes):
         super(LSTM_Tagger, self).__init__()
@@ -47,15 +48,15 @@ def evaluate(model, device, X_test, y_test):
     return acc
 
 
-def train_model(verbose=True, hidden_dim=80, X_train=None, y_train=None, X_test=None, y_test=None, epochs=40):
+def train_model(verbose=True, hidden_dim=100, X_train=None, y_train=None, X_test=None, y_test=None, epochs=40):
     if X_train is None:
-        X_train, y_train, X_test, y_test = prepare_grouped_data(scale=True)
+        X_train, y_train, X_test, y_test = prepare_grouped_data_under(scale=True)
 
     epochs = epochs
     vector_embedding_dim = X_train[0].shape[1]
     hidden_dim = hidden_dim
     count_type_size = 4
-    accumulate_grad_steps = 50
+    accumulate_grad_steps = 70
 
     model = LSTM_Tagger(vector_embedding_dim, hidden_dim, count_type_size)
 
@@ -124,46 +125,31 @@ def load_model(model_fname):
     return model
 
 
-def LSTM_error_rate_per_hour(model):
-    _, _, X_test, y_test = prepare_grouped_data(scale=True)
-
-    errors = np.zeros(24)
-    counts = np.zeros(24)
-    for x, y in zip(X_test, y_test):
-        _, predictions = torch.max(model(x), 1)
-        for i in range(len(x)):
-            if predictions[i] != y[i]:
-                errors[i] += 1
-            counts[i] += 1
-
-    error_rate = errors / np.sum(errors)
-
-    plt.bar(np.arange(1, 25), error_rate)
-    plt.xticks(np.arange(1, 25))
-    plt.title('LSTM Error Distribution - hourly')
-    plt.show()
-
+def FindMaxLength(lst):
+    maxLength = max(len(x) for x in lst)
+    return maxLength
 
 
 if __name__ == '__main__':
-    X_train, y_train, X_test_and_validation, y_test_and_validation = prepare_grouped_data(scale=True)
-    X_validation, X_test, y_validation, y_test = train_test_split(X_test_and_validation, y_test_and_validation, test_size=2 / 3,                                                                      random_state=57)
 
+    X_train, y_train, X_test_and_validation, y_test_and_validation = prepare_grouped_data_under(scale=True)
+    X_validation, X_test, y_validation, y_test = train_test_split(X_test_and_validation, y_test_and_validation,
+                                                                  test_size=2 / 3, random_state=57)
 
     print('Validation started')
     best_acc = 0
-    hidden_dim = 50
+    best_dim = 50
     epochs = 40
 
+    for hidden_dim in [50, 100, 200]:
+        print('---------------------------')
+        print(f'Hidden dim: {hidden_dim}')
+        _, acc = train_model(verbose=True, hidden_dim=hidden_dim,
+                             X_train=X_train, y_train=y_train, X_test=X_validation, y_test=y_validation, epochs=epochs)
+        best_acc, best_dim = (acc, hidden_dim) if acc > best_acc else (best_acc, best_dim)
 
-    print('---------------------------')
-    print(f'Hidden dim: {hidden_dim}')
-    _, acc = train_model(verbose=True, hidden_dim=hidden_dim,
-                X_train=X_train, y_train=y_train, X_test=X_validation, y_test=y_validation, epochs=epochs)
-
-    print(f' Train accuracy: {acc}\t Dimension: {hidden_dim}')
-    model, acc = train_model(verbose=True, hidden_dim=hidden_dim,
-                    X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test, epochs=epochs)
+    print(f'Best accuracy: {best_acc}\tBest dim: {best_dim}')
+    model, acc = train_model(verbose=True, hidden_dim=best_dim,
+                             X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test, epochs=epochs)
     print(f'Test accuracy of the model is {acc}')
 
-    LSTM_error_rate_per_hour(model)
