@@ -5,11 +5,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 #from auxiliary_functions import get_x_any_y_advanced_creative, get_x_any_y, get_x_any_y_years
 import datetime
+import itertools
+
 plt.style.use('ggplot')
 pd.set_option('display.max_rows', 100,'display.max_columns',None)
 
 
-X_COLUMNS = ['date','hour', 'month','day', 'day_literal', 'spd', 'vsb','temp', 'dewp', 'slp', 'sd', 'hday']
+X_COLUMNS = ['hour', 'month','day', 'day_literal', 'spd', 'vsb','temp', 'dewp', 'slp', 'sd', 'hday']
 Y_COLUMN = 'loadrank'
 
 TEST_SIZE = 0.3
@@ -19,10 +21,17 @@ def get_x_any_y(df, dates, y_column):
     x, y = [], []
     for date in dates:
         day_df = df[df['date'] == date]
-        x.append(day_df.drop([y_column,'pickups','year'], axis=1).to_numpy())
+        x.append(day_df.drop([y_column,'pickups','date','year'], axis=1).to_numpy())
         y.append(day_df[y_column].to_numpy())
     return x, y
 
+def get_x_any_y_years(df, years, y_column):
+    x, y = [], []
+    for year in years:
+        years_df = df[df['year'] == year]
+        x.append(years_df.drop([y_column,'date', 'year'], axis=1).to_numpy())
+        y.append(years_df[y_column].to_numpy())
+    return x, y
 
 def prepare():
     data= pd.read_csv("datasets/uber_nyc_enriched.csv",index_col=False)
@@ -32,7 +41,7 @@ def prepare():
     hrs = []
     dow = []
     dow_list = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-    dict1 = {}
+
     dt_time = data['pickup_dt'].copy(deep=True).to_numpy()
     for i in range(len(dt_time)):
         mm.append(dt_time[i].split(" ")[0].split("-")[1])
@@ -54,41 +63,19 @@ def prepare():
                                           int(mm[i]),
                                           int(dd[i])).weekday()])
 
-    for i in range(len(dt_time)):
-        day = datetime.date(int(yy[i]),int(mm[i]),int(dd[i])) - datetime.timedelta(days=7)
-        m = str(day).split(" ")[0].split("-")[1]
-        d = str(day).split(" ")[0].split("-")[2]
-        y = str(day).split(" ")[0].split("-")[0]
-        if y+m+d == '20150101':
-            day = datetime.date(int(yy[i]), int(mm[i]), int(dd[i])) + datetime.timedelta(days=7)
-            m = str(day).split(" ")[0].split("-")[1]
-            d = str(day).split(" ")[0].split("-")[2]
-            y = str(day).split(" ")[0].split("-")[0]
-        if int(y) == 2014:
-            day = datetime.date(int(yy[i]), int(mm[i]), int(dd[i])) + datetime.timedelta(days=7)
-            m = str(day).split(" ")[0].split("-")[1]
-            d = str(day).split(" ")[0].split("-")[2]
-            y = str(day).split(" ")[0].split("-")[0]
-        dict1[yy[i]+mm[i]+dd[i]] = y+m+d
-        dict1[str(2016)+mm[i]+dd[i]] = y+m+d
-
-
     data['month'] = mm
     data['day'] = dd
     data['year'] = yy
     data['hour'] = hrs
     data['day_literal'] = dow
     data['date'] = data['year'] + data['month'] + data['day']
-    del data['pickup_dt']
+    del data['pickup_dt']  ## TODO check if it affects the others
     del data['pcp01']
     del data['pcp06']
     del data['pcp24']
-    data.to_csv("datasets/uber_new.csv", index=False)
-    data['prev_week_date'] = data.apply(lambda row: dict1[row['date']], axis=1)
-    #data.to_csv("datasets/uber_new_prev.csv",index=False)
-    return dict1
-dict1 = prepare()
-#(dict1)
+    data.to_csv("datasets/uber_new.csv",index=False)
+#prepare()
+
 
 def change_to_numbers():
     dow_dict = {"Monday":0, "Tuesday":1, "Wednesday":2, "Thursday":3, "Friday":4, "Saturday":5, "Sunday":6}
@@ -100,25 +87,15 @@ def change_to_numbers():
     df.to_csv("datasets/uber_hour_changing_num.csv", index=False)
     return df
 
-
 def group_by_ignore_borough(df):
     df1 = df.groupby(['date', 'hour', 'month', 'day', 'day_literal', 'year', 'spd', 'vsb', 'temp', 'dewp', 'slp', 'sd', 'hday'], observed=True)['pickups'].sum().reset_index()
     return df1
 
-
 def prepare_categorized_dataset():
-    #prepare()
+    prepare()
     df = change_to_numbers()
     # to group_by_borough
     df = group_by_ignore_borough(df)
-    t = df[df['date'] == 20150101]
-    t = t[t['hour']==1]
-    t['hour'] = 0
-    t = list(t[t['hour'] == 0].loc[0])
-    t = list(map(int, t))
-    df.loc[-1] = t
-    df.index = df.index + 1  # shifting index
-    df = df.sort_index()
     max_count = max(df['pickups'])
     # print(max_count)
     max_range = range(max_count)
@@ -128,14 +105,12 @@ def prepare_categorized_dataset():
     # print(df_agg)
     df.to_csv("datasets/uber_hour_categorized.csv",index=False)
     return df
-prepare_categorized_dataset()
-
 
 def prepare_train_test(categorized=False, scale=True, **kwargs):
     seed = kwargs.get("seed", 57)
 
     df = prepare_categorized_dataset()
-    X = df.drop([Y_COLUMN,"pickups",'year'], axis=1)
+    X = df.drop([Y_COLUMN,"pickups", 'date','year'], axis=1)
     Y = df[Y_COLUMN]
 
     train_x, test_x, train_y, test_y = train_test_split(X, Y, test_size = TEST_SIZE, random_state = seed)
@@ -150,8 +125,7 @@ def prepare_train_test(categorized=False, scale=True, **kwargs):
 
     return test_x, test_y, train_x, train_y
 
-
-def prepare_grouped_data(categorized=False, scale=True):
+def prepare_grouped_data(scale=True):
     df = prepare_categorized_dataset()
     dates_in_data = np.unique(df['date'])
     train_days, test_days = train_test_split(dates_in_data,
@@ -162,7 +136,7 @@ def prepare_grouped_data(categorized=False, scale=True):
     test_x, test_y = get_x_any_y(df, test_days, Y_COLUMN)
     if scale:
         train_set = df[df['date'].isin(train_days)]
-        train_set_x = train_set.drop([Y_COLUMN, "pickups",'year'], axis=1)
+        train_set_x = train_set.drop([Y_COLUMN, "pickups", 'date','year'], axis=1)
         scalar = StandardScaler()
         scalar.fit(train_set_x)
 
@@ -171,7 +145,6 @@ def prepare_grouped_data(categorized=False, scale=True):
         return scaled_train_x, train_y, scaled_test_x, test_y
 
     return train_x, train_y, test_x, test_y
-
 
 def value_to_index(lst):
 
@@ -193,33 +166,17 @@ def over_sampling():
     y_2 = np.unique(num_2['date'])
     y_3 = np.unique(num_3['date'])
     count=0
-    new_data = pd.DataFrame(columns=data.columns)
-    list_com = []
-    #print(len(y_2))
-    #print(len(y_3))
+    new = pd.DataFrame(columns=data.columns)
     for i in y_2:
-        list_com.append(i)
-    for i in y_3:
-        if i in list_com:
-            continue
-        else:
-            list_com.append(i)
-    print(len(list_com))
-    for i in list_com:
         p = np.random.rand()
         if p > 0.5:
             count += 1
-            t = str(i)
-            h = t[4:]
-            y = '2016'+h
             temp = data[data['date']==i]
-            temp = temp.replace({i:int(y)})
-            #temp['date'] = y
-            #print('t',temp['date'])
-            #temp['date'] = temp.apply(lambda row: str(row['year'])+'0'+str(row['month'])+str(row['day']),axis=1)
-            print(temp)
-            new_data = pd.concat([new_data,temp])
-    """
+            temp = temp.replace(2015,str(2016))
+            temp['date'] = temp.apply(lambda row: str(row['year'])+str(row['month'])+str(row['day']),axis=1)
+            #print(temp)
+            new = pd.concat([new,temp])
+
     for i in y_3:
         p = np.random.rand()
         if p > 0.5:
@@ -229,8 +186,7 @@ def over_sampling():
             temp['date'] = temp.apply(lambda row: str(row['year'])+str(row['month'])+str(row['day']),axis=1)
             #print(temp)
             new = pd.concat([new,temp])
-    """
-    new_data=pd.concat([new_data,data])
+    new_data=pd.concat([new,data])
     print('cnt ', count)
     print('over sampling ',len(new_data))
     #new_data = shuffle(new_data)
@@ -240,7 +196,6 @@ def over_sampling():
     print('over_sampling',new_data)
     df = new_data.groupby('loadrank')['pickups'].count().reset_index(name='sum_uber_pickups')
     df = df.set_index('loadrank')
-    df[['sum_uber_pickups']]
     df.plot.bar(rot=0, title=f"Hist of Hours per Category  [0, 1, 2, 3]\n Over", alpha=0.7, color='salmon')
     plt.ylabel('Sum Hours')
     plt.xlabel('Category')
@@ -248,10 +203,11 @@ def over_sampling():
     plt.show()
     return new_data
 
-
 def hist_of_loads():
     df = pd.read_csv("datasets/uber_hour_categorized_by_borough1.csv")
     df = df[['borough','loadrank']]
+
+
     for b in ['Bronx','Brooklyn','EWR','Manhattan','Queens','Staten Island']:
         df1 = df[df['borough'] == b ]
         df1 = df1['loadrank']
@@ -268,8 +224,6 @@ def hist_of_loads():
     #plt.savefig('figures/hist_per_each_category.png')
     #df.plot.bar()
     #plt.show()
-hist_of_loads()
-
 
 def under_sampling():
     ## under sampling
@@ -296,15 +250,10 @@ def under_sampling():
     #print(len(y_not))
     #print(y_not)
     new_data = pd.DataFrame(columns=data.columns)
-    list_com = []
     for i in y_2:
-        list_com.append(i)
+        temp = data[data['date'] == i]
+        new_data = pd.concat([new_data,temp])
     for i in y_3:
-        if i in list_com:
-            continue
-        else:
-            list_com.append(i)
-    for i in list_com:
         temp = data[data['date'] == i]
         new_data = pd.concat([new_data,temp])
     cnt = 0
@@ -314,16 +263,12 @@ def under_sampling():
             cnt += 1
             temp = data[data['date'] == i]
             new_data = pd.concat([new_data,temp])
-    print('cnt ', cnt)
-    print('under sampling ', len(new_data))
     #new_data = shuffle(new_data)
     for i in ['date','hour', 'month','day', 'day_literal', 'year','spd', 'temp', 'dewp', 'hday','pickups','loadrank']:
         new_data[i] = new_data[i].astype(int)
-    print('under_sampling',new_data)
     new_data.to_csv('under_sampling.csv',index=False)
     df = new_data.groupby('loadrank')['pickups'].count().reset_index(name='sum_uber_pickups')
     df = df.set_index('loadrank')
-    df[['sum_uber_pickups']]
     df.plot.bar(rot=0, title=f"Hist of Hours per Category  [0, 1, 2, 3]\n Under", alpha=0.7, color='salmon')
     plt.ylabel('Sum Hours')
     plt.xlabel('Category')
@@ -332,6 +277,7 @@ def under_sampling():
     return new_data
 
 def prepare_grouped_data_over(categorized=False, scale=True):
+    over_sampling()
     df = pd.read_csv("over_sampling.csv", index_col=False)
     dates_in_data = np.unique(df['date'])
     train_days, test_days = train_test_split(dates_in_data,
@@ -342,7 +288,7 @@ def prepare_grouped_data_over(categorized=False, scale=True):
     test_x, test_y = get_x_any_y(df, test_days, Y_COLUMN)
     if scale:
         train_set = df[df['date'].isin(train_days)]
-        train_set_x = train_set.drop([Y_COLUMN, "pickups",'year'], axis=1)
+        train_set_x = train_set.drop([Y_COLUMN, "pickups", 'date','year'], axis=1)
         scalar = StandardScaler()
         scalar.fit(train_set_x)
 
@@ -352,8 +298,8 @@ def prepare_grouped_data_over(categorized=False, scale=True):
 
     return train_x, train_y, test_x, test_y
 
-
 def prepare_grouped_data_under(categorized=False, scale=True):
+    under_sampling()
     df = pd.read_csv("under_sampling.csv", index_col=False)
     dates_in_data = np.unique(df['date'])
     train_days, test_days = train_test_split(dates_in_data,
@@ -364,7 +310,7 @@ def prepare_grouped_data_under(categorized=False, scale=True):
     test_x, test_y = get_x_any_y(df, test_days, Y_COLUMN)
     if scale:
         train_set = df[df['date'].isin(train_days)]
-        train_set_x = train_set.drop([Y_COLUMN, "pickups",'year'], axis=1)
+        train_set_x = train_set.drop([Y_COLUMN,"pickups", 'date','year'], axis=1)
         scalar = StandardScaler()
         scalar.fit(train_set_x)
 
@@ -374,15 +320,10 @@ def prepare_grouped_data_under(categorized=False, scale=True):
 
     return train_x, train_y, test_x, test_y
 
-#over_sampling()
-#under_sampling()
-
-
 def group_by_borough(df):
     df1 = df.groupby(['borough','date', 'hour', 'month', 'day', 'day_literal', 'year', 'spd', 'vsb', 'temp', 'dewp',
                       'slp', 'sd', 'hday'], observed=True)['pickups'].sum().reset_index()
     return df1
-
 
 def prepare_categorized_dataset_creative():
     prepare()
@@ -399,14 +340,11 @@ def prepare_categorized_dataset_creative():
     df.to_csv("datasets/uber_hour_categorized_by_borough.csv",index=False)
     return df
 
-
 def get_boroughs_dict():
     return {"Bronx": 0, "Brooklyn": 1, "EWR": 2, "Manhattan": 3, "Queens": 4, "Staten Island": 5, "NA": 6}
 
-
 def get_boroughs_dict_reversed():
     return {0: "Bronx", 1:"Brooklyn", 2: "EWR", 3: "Manhattan", 4: "Queens", 5: "Staten Island", 6: "NA"}
-
 
 def get_x_any_y_creative(df, dates, y_column):
     x, y = [], []
@@ -417,10 +355,9 @@ def get_x_any_y_creative(df, dates, y_column):
             day_df = df[df['date'] == date]
             day_bor_df = day_df[day_df['borough'] == bor]
             if not day_bor_df.empty:
-                x.append(day_bor_df.drop([y_column,'pickups','year'], axis=1).to_numpy())
+                x.append(day_bor_df.drop([y_column,'pickups','date','year'], axis=1).to_numpy())
                 y.append(day_bor_df[y_column].to_numpy())
     return x, y
-
 
 def prepare_grouped_data_creative(scale=True):
     df = prepare_categorized_dataset_creative()
@@ -433,7 +370,7 @@ def prepare_grouped_data_creative(scale=True):
     test_x, test_y = get_x_any_y_creative(df, test_days, Y_COLUMN)
     if scale:
         train_set = df[df['date'].isin(train_days)]
-        train_set_x = train_set.drop([Y_COLUMN, "pickups",'year'], axis=1)
+        train_set_x = train_set.drop([Y_COLUMN, "pickups", 'date','year'], axis=1)
         scalar = StandardScaler()
         scalar.fit(train_set_x)
 
