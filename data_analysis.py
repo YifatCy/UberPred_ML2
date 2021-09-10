@@ -3,7 +3,6 @@ from sklearn.preprocessing import StandardScaler
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from preprocssing import prepare_dataset as df
 import matplotlib.pyplot as plt
 from preprocssing import prepare_categorized_dataset
 import seaborn as sns
