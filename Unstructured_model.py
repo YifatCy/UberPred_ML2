@@ -8,8 +8,8 @@ from sklearn.linear_model import Perceptron
 from sklearn.model_selection import train_test_split
 
 
-def calculate_accuracy(predictions, real):
-    return np.average(predictions == real)
+def calculate_accuracy(pred, real):
+    return np.average(pred == real)
 
 def logistic_regression(data):
     test_set_x, test_set_y, train_set_x, train_set_y = data
