@@ -391,14 +391,24 @@ def prepare_categorized_dataset_creative():
     max_count = max(df['pickups'])
     max_range = range(max_count)
     quantile = np.quantile(max_range, q=[1/7, 2/7, 3/7, 4/7, 5/7, 6/7])
-    df['loadrank'] = df["pickups"].apply(
-        lambda x: 0 if x <= quantile[0] else
-        (1 if x <= quantile[1] else (2 if x <= quantile[2] else (3 if x<= quantile[3] else (4 if x <= quantile[4] else (5 if x <= quantile[5]
-            else 6 ))))))
+    #df['loadrank'] = df["pickups"].apply(
+    #    lambda x: 0 if x <= quantile[0] else
+    #    (1 if x <= quantile[1] else (2 if x <= quantile[2] else (3 if x<= quantile[3] else (4 if x <= quantile[4] else (5 if x <= quantile[5]
+    #        else 6 ))))))
+    #df['loadrank'] = df['pickups']
+    #for i in range(10, 3000, 10):
+    #    df['loadrank'] = df['loadrank'].apply(lambda x: i if (x < i and x >= i-10) else x)
+
+    #df['loadrank'].apply(lambda x: 3000 if (x >= 3000) else x)
+    #df['loadrank'] = np.where(
+    #    (df['pickups'] >= 3000), 3000, df['loadrank']
+    #)
     # print(df_agg)
+
+    df['loadrank'] = pd.cut(df['pickups'],bins=range(0,8000,30), include_lowest=True,labels=range(0,266))
     df.to_csv("datasets/uber_hour_categorized_by_borough.csv",index=False)
     return df
-
+prepare_categorized_dataset_creative()
 
 def get_boroughs_dict():
     return {"Bronx": 0, "Brooklyn": 1, "EWR": 2, "Manhattan": 3, "Queens": 4, "Staten Island": 5, "NA": 6}
