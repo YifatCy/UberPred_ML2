@@ -35,12 +35,11 @@ def hist_per_each_category(df):
     df = df.groupby('loadrank')['pickups'].count().reset_index(name='sum_uber_pickups')
     df = df.set_index('loadrank')
     df[['sum_uber_pickups']]
-    df.plot.bar(rot=0, title=f"Hist of Hours per Category [0, 1, 2, 3]", alpha=0.7,color='salmon')
+    df.plot.bar(rot=0, title=f"Hist of Hours per Category", alpha=0.7,color='salmon')
     plt.ylabel('Sum Hours')
     plt.xlabel('Category')
-    plt.savefig('figures/hist_per_each_category.png')
+    plt.savefig('hist_per_each_category.png')
     plt.show()
-
 
 def heat_map_day_hours_pickups(df):
     #print(df.groupby(['day_literal', 'hour'])['pickups'].mean())
@@ -85,11 +84,13 @@ def hist_per_each_category_b(df):
                  title='Sum pickups per each category per each borough')
     plt.show()
 
-df = prepare_categorized_dataset()
-print(df)
-hist_per_each_category_b(df)
+#df = prepare_categorized_dataset()
+#print(df)
+#hist_per_each_category_b(df)
 df1 = prepare_categorized_dataset_creative()
 print(df1)
+
+#df = pd.read_csv("datasets/uber_hour_categorized_by_borough.csv")
 hist_per_each_category_b(df1)
 #hist_per_hours(df)
 #hist_per_week_day(df)
