@@ -211,10 +211,10 @@ if __name__ == '__main__':
 
     print('Validation started')
     best_acc = 0
-    hidden_dim = 50
-    epochs = 40
-    #hidden_dim = 1
-    #epochs = 1
+    #hidden_dim = 50
+    #epochs = 40
+    hidden_dim = 1
+    epochs = 1
 
     print('---------------------------')
     print(f'Hidden dim: {hidden_dim}')

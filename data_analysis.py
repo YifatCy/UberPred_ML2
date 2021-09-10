@@ -3,9 +3,9 @@ from sklearn.preprocessing import StandardScaler
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from preprocssing import prepare_dataset as df
+#from preprocssing import prepare_dataset as df
 import matplotlib.pyplot as plt
-from preprocssing import prepare_categorized_dataset
+from preprocssing import *
 import seaborn as sns
 plt.style.use('ggplot')
 
@@ -43,13 +43,13 @@ def hist_per_each_category(df):
 
 
 def heat_map_day_hours_pickups(df):
-    print(df.groupby(['day_literal', 'hour'])['pickups'].mean())
+    #print(df.groupby(['day_literal', 'hour'])['pickups'].mean())
     dow_dict = {"Monday": 0, "Tuesday": 1, "Wednesday": 2, "Thursday": 3, "Friday": 4, "Saturday": 5, "Sunday": 6}
-    print(df)
+    #print(df)
     corrected_dict = {v: k for k, v in dow_dict.items()}
 
     #df['day_literal'] = df['day_literal'].replace(corrected_dict)
-    print(df)
+    #print(df)
     weekly_data = df.groupby(['day_literal', 'hour'])['pickups'].mean()
     #print(weekly_data.index[:][0])
     #weekly_data['day_literal'] = weekly_data['day_literal'].replace(corrected_dict)
@@ -64,13 +64,38 @@ def heat_map_day_hours_pickups(df):
     plt.show()
 
 
+def hist_per_each_category(df):
+    df = df.groupby('loadrank')['pickups'].count().reset_index(name='sum_uber_pickups')
+    df = df.set_index('loadrank')
+    df[['sum_uber_pickups']]
+    df.plot.bar(rot=0, title=f"Hist of Hours per Category [0, 1, 2, 3]", alpha=0.7,color='salmon')
+    plt.ylabel('Sum Hours')
+    plt.xlabel('Category')
+    plt.savefig('figures/hist_per_each_category.png')
+    plt.show()
+
+
+def hist_per_each_category_b(df):
+    df = df[['borough', 'pickups', 'loadrank']]
+    df = df.groupby(['loadrank', 'borough'])['pickups'].sum().reset_index()
+    df = df.pivot(index="loadrank", columns='borough', values='pickups')
+    borough_dict = {0: "Bronx", 1: "Brooklyn", 2: "EWR", 3: "Manhattan", 4: "Queens", 5: "Staten Island"}
+    df = df.rename(columns=borough_dict).fillna(0)
+    df.plot.bar(rot=0, ylabel='Sum pickups 1M', xlabel='Category', colormap='Paired',
+                 title='Sum pickups per each category per each borough')
+    plt.show()
 
 df = prepare_categorized_dataset()
 print(df)
-hist_per_hours(df)
-hist_per_week_day(df)
-hist_per_each_category(df)
-heat_map_day_hours_pickups(df)
-
-nyc = gpd.read_file(gpd.datasets.get_path('nybb'))
-nyc.head(5)
+hist_per_each_category_b(df)
+df1 = prepare_categorized_dataset_creative()
+print(df1)
+hist_per_each_category_b(df1)
+#hist_per_hours(df)
+#hist_per_week_day(df)
+#hist_per_each_category(df)
+#heat_map_day_hours_pickups(df)
+#df1 = prepare_categorized_dataset_creative()
+#print(df1)
+#nyc = gpd.read_file(gpd.datasets.get_path('nybb'))
+#nyc.head(5)
