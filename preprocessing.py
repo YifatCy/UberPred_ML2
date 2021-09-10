@@ -128,7 +128,7 @@ def prepare_categorized_dataset():
     # print(df_agg)
     df.to_csv("datasets/uber_hour_categorized.csv",index=False)
     return df
-prepare_categorized_dataset()
+#prepare_categorized_dataset()
 
 
 def prepare_train_test(categorized=False, scale=True, **kwargs):
@@ -247,10 +247,11 @@ def over_sampling():
     #plt.savefig('figures/hist_per_each_category.png')
     plt.show()
     return new_data
+over_sampling()
 
 
 def hist_of_loads():
-    df = pd.read_csv("datasets/uber_hour_categorized_by_borough1.csv")
+    df = pd.read_csv("datasets/uber_hour_categorized_by_borough.csv")
     df = df[['borough','loadrank']]
     for b in ['Bronx','Brooklyn','EWR','Manhattan','Queens','Staten Island']:
         df1 = df[df['borough'] == b ]
@@ -374,7 +375,10 @@ def prepare_grouped_data_under(categorized=False, scale=True):
 
     return train_x, train_y, test_x, test_y
 
-#over_sampling()
+#
+
+
+()
 #under_sampling()
 
 
@@ -399,7 +403,7 @@ def prepare_categorized_dataset_creative():
     df.to_csv("datasets/uber_hour_categorized_by_borough.csv",index=False)
     return df
 
-
+prepare_categorized_dataset_creative()
 def get_boroughs_dict():
     return {"Bronx": 0, "Brooklyn": 1, "EWR": 2, "Manhattan": 3, "Queens": 4, "Staten Island": 5, "NA": 6}
 

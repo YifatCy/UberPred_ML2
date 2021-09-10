@@ -3,142 +3,122 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import pickle
-from preprocssing import *
-from preprocssing import train_test_split
+from preprocessing import *
+from preprocessing import train_test_split
 import torch
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
 
 class LSTM_Tagger(nn.Module):
-    def __init__(self, vector_emb_dim, hidden_dim, num_classes):
+    def __init__(self, vector_embedding_dim, hidden_dimension, classes_num):
         super(LSTM_Tagger, self).__init__()
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.lstm = nn.LSTM(input_size=vector_emb_dim, hidden_size=hidden_dim,
+        if torch.cuda.is_available():
+            self.device = torch.device("cuda")
+        else:
+            self.device =torch.device("cpu")
+        self.lstm = nn.LSTM(input_size=vector_embedding_dim, hidden_size=hidden_dimension,
                             num_layers=2, bidirectional=True, batch_first=False)
-        self.hidden_to_count = nn.Linear(hidden_dim * 2, num_classes)
+        self.hidden_to_count = nn.Linear(hidden_dimension * 2, classes_num)
 
-    def forward(self, hours_array, get_hidden_layer=False):
-        hours_tensor = torch.from_numpy(hours_array).float().to(self.device)
-
-        lstm_out, _ = self.lstm(
-            hours_tensor.view(hours_tensor.shape[0], 1, -1))  # [seq_length, batch_size, 2*hidden_dim]
-
-        if get_hidden_layer:
+    def forward(self, hours_array, hidden_layer=False):
+        tens_hours = torch.from_numpy(hours_array).float().to(self.device)
+        lstm_out, _ = self.lstm(tens_hours.view(tens_hours.shape[0], 1, -1))
+        if hidden_layer:
             return lstm_out
-
-        class_weights = self.hidden_to_count(lstm_out.view(hours_tensor.shape[0], -1))  # [seq_length, tag_dim]
-        # return class_weights
-
-        count_type_scores = F.log_softmax(class_weights, dim=1)  # [seq_length, tag_dim]
-        return count_type_scores
+        weights_class = self.hidden_to_count(lstm_out.view(tens_hours.shape[0], -1))
+        count_scores = F.log_softmax(weights_class, dim=1)
+        return count_scores
 
 
-def evaluate(model, device, X_test, y_test):
-    acc = 0
-    with torch.no_grad():
-        for day_index in range(len(X_test)):
-            hours_array = X_test[day_index]
-            counts_tensor = torch.from_numpy(y_test[day_index]).to(device)
-            counts_scores = model(hours_array)
-            _, indices = torch.max(counts_scores, 1)
-            acc += np.sum(counts_tensor.to("cpu").numpy() == indices.to("cpu").numpy())
-        acc = acc / (len(X_test) * len(X_test[0]))
-    return acc
-
-
-def train_model(verbose=True, hidden_dim=80, X_train=None, y_train=None, X_test=None, y_test=None, epochs=40):
-    if X_train is None:
-        X_train, y_train, X_test, y_test = prepare_grouped_data(scale=True)
-
+def train(verbose=True, hidden_dimension=80, x_train=None, y_train=None, x_test=None, y_test=None, epochs=40):
+    if x_train is None:
+        x_train, y_train, x_test, y_test = prepare_grouped_data(scale=True)
     epochs = epochs
-    vector_embedding_dim = X_train[0].shape[1]
-    hidden_dim = hidden_dim
-    count_type_size = 4
-    accumulate_grad_steps = 50
-
-    model = LSTM_Tagger(vector_embedding_dim, hidden_dim, count_type_size)
-
-    use_cuda = torch.cuda.is_available()
-    device = torch.device("cuda:0" if use_cuda else "cpu")
-    if use_cuda:
+    hidden_dimension = hidden_dimension
+    vector_embed_dim = x_train[0].shape[1]
+    accum_grad_steps = 50
+    count_type = 4
+    model = LSTM_Tagger(vector_embed_dim, hidden_dimension, count_type)
+    with_cuda = torch.cuda.is_available()
+    torch_device = torch.device("cuda:0" if with_cuda else "cpu")
+    if with_cuda:
         model.cuda()
-
     loss_function = nn.NLLLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.01)
-
-    # Training start
+    opt = optim.Adam(model.parameters(), lr=0.01)
     if verbose:
-        print("Training Started")
+        print("start-train")
     accuracy_list = []
-    loss_list = []
+    loss_l = []
     epochs = epochs
-    best_acc = 0
+    best_accuracy = 0
     for epoch in range(epochs):
-        acc = 0
-        printable_loss = 0
-        i = 0
-        for day_index in np.random.permutation(len(X_train)):
-            i += 1
-
-            hours_array = X_train[day_index]
-            counts_tensor = torch.from_numpy(y_train[day_index]).to(device)
-
+        accuracy = 0
+        loss_printable = 0
+        indx = 0
+        for day_index in np.random.permutation(len(x_train)):
+            indx += 1
+            hours_array = x_train[day_index]
+            counts_tensor = torch.from_numpy(y_train[day_index]).to(torch_device)
             counts_scores = model(hours_array)
             loss = loss_function(counts_scores, counts_tensor)
-            loss /= accumulate_grad_steps
+            loss /= accum_grad_steps
             loss.backward()
-
-            if i % accumulate_grad_steps == 0:
-                optimizer.step()
+            if indx % accum_grad_steps == 0:
+                opt.step()
                 model.zero_grad()
-            printable_loss += loss.item()
+            loss_printable += loss.item()
             _, indices = torch.max(counts_scores, 1)
-
-            acc += np.mean(counts_tensor.to("cpu").numpy() == indices.to("cpu").numpy())
+            accuracy += np.mean(counts_tensor.to("cpu").numpy() == indices.to("cpu").numpy())
 
         if verbose:
-            printable_loss = accumulate_grad_steps * (printable_loss / len(X_train))
-            acc = acc / len(X_train)
-            loss_list.append(float(printable_loss))
-            accuracy_list.append(float(acc))
-            test_acc = evaluate(model, device, X_test, y_test)
-            best_acc = test_acc if test_acc > best_acc else best_acc
-            e_interval = i
-            print("Epoch {} Completed\t Loss {:.3f}\t Train Accuracy: {:.3f}\t Test Accuracy: {:.3f}"
-                  .format(epoch + 1,
-                          np.mean(loss_list[-e_interval:]),
-                          np.mean(accuracy_list[-e_interval:]),
-                          test_acc))
-    return model, best_acc
+            loss_printable = accum_grad_steps * (loss_printable / len(x_train))
+            accuracy = accuracy / len(x_train)
+            accuracy_list.append(float(accuracy))
+            loss_l.append(float(loss_printable))
+            test_accuracy = estimation(model, torch_device, x_test, y_test)
+            best_accuracy = test_accuracy if test_accuracy > best_accuracy else best_accuracy
+            e_interval = indx
+            print("Epoch {} completed\t Loss {:.3f}\t Train Accuracy: {:.3f}\t Test Accuracy: {:.3f}"
+                  .format(epoch + 1, np.mean(loss_l[-e_interval:]),
+                          np.mean(accuracy_list[-e_interval:]),test_accuracy))
+    return model, best_accuracy
+
+def estimation(model, device, x_test, y_test):
+    accuracy = 0
+    with torch.no_grad():
+        for day_index in range(len(x_test)):
+            hours_array = x_test[day_index]
+            tensor_count = torch.from_numpy(y_test[day_index]).to(device)
+            scores_count = model(hours_array)
+            _, indx = torch.max(scores_count, 1)
+            accuracy += np.sum(tensor_count.to("cpu").numpy() == indx.to("cpu").numpy())
+        accuracy = accuracy / (len(x_test) * len(x_test[0]))
+    return accuracy
 
 
-def save_model(model, model_fname):
-    with open(f'dumps/{model_fname}', 'wb') as f:
-        pickle.dump(model, f)
-
-
-def load_model(model_fname):
+def model_loading(model_fname):
     with open(f'dumps/{model_fname}', 'rb') as f:
         model = pickle.load(f)
     return model
 
+def model_saving(model, model_fname):
+    with open(f'dumps/{model_fname}', 'wb') as f:
+        pickle.dump(model, f)
 
-def LSTM_error_rate_per_hour(model):
-    _, _, X_test, y_test = prepare_grouped_data(scale=True)
-
-    errors = np.zeros(24)
+def LSTM_error_per_hour(model):
+    _, _, x_test, y_test = prepare_grouped_data(scale=True)
     counts = np.zeros(24)
-    for x, y in zip(X_test, y_test):
-        _, predictions = torch.max(model(x), 1)
-        for i in range(len(x)):
-            if predictions[i] != y[i]:
-                errors[i] += 1
-            counts[i] += 1
+    errors = np.zeros(24)
+    for x, y in zip(x_test, y_test):
+        _, pred = torch.max(model(x), 1)
+        for indx in range(len(x)):
+            if pred[indx] != y[indx]:
+                errors[indx] += 1
+            counts[indx] += 1
 
-    error_rate = errors / np.sum(errors)
-
-    plt.bar(np.arange(1, 25), error_rate)
+    rate_errors = errors / np.sum(errors)
+    plt.bar(np.arange(1, 25), rate_errors)
     plt.xticks(np.arange(1, 25))
     plt.title('LSTM Error Distribution - hourly')
     plt.show()
@@ -146,24 +126,18 @@ def LSTM_error_rate_per_hour(model):
 
 
 if __name__ == '__main__':
-    X_train, y_train, X_test_and_validation, y_test_and_validation = prepare_grouped_data(scale=True)
-    X_validation, X_test, y_validation, y_test = train_test_split(X_test_and_validation, y_test_and_validation, test_size=2 / 3,                                                                      random_state=57)
-
-
-    print('Validation started')
+    x_train, y_train, x_test_val, y_test_val = prepare_grouped_data(scale=True)
+    x_val, x_test, y_val, y_test = train_test_split(x_test_val, y_test_val, test_size=2 / 3, random_state=57)
+    print('start val')
     best_acc = 0
-    hidden_dim = 50
+    hidden_dimension = 50
     epochs = 40
-
-
-    print('---------------------------')
-    print(f'Hidden dim: {hidden_dim}')
-    _, acc = train_model(verbose=True, hidden_dim=hidden_dim,
-                X_train=X_train, y_train=y_train, X_test=X_validation, y_test=y_validation, epochs=epochs)
-
-    print(f' Train accuracy: {acc}\t Dimension: {hidden_dim}')
-    model, acc = train_model(verbose=True, hidden_dim=hidden_dim,
-                    X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test, epochs=epochs)
-    print(f'Test accuracy of the model is {acc}')
-
-    LSTM_error_rate_per_hour(model)
+    print('___________________')
+    print(f'Hidden dimension: {hidden_dimension}')
+    _, accuracy = train(verbose=True, hidden_dimension=hidden_dimension, x_train=x_train,
+                        y_train=y_train, x_test=x_val, y_test=y_val, epochs=epochs)
+    print(f'Train accuracy: {accuracy}\t Dimension: {hidden_dimension}')
+    model, accuracy = train(verbose=True, hidden_dimension=hidden_dimension,
+                            x_train=x_train, y_train=y_train, x_test=x_test, y_test=y_test, epochs=epochs)
+    print(f'Test model accuracy: {accuracy}')
+    LSTM_error_per_hour(model)
