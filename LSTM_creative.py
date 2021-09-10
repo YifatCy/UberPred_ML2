@@ -74,7 +74,7 @@ def train_model(verbose=True, hidden_dim=100, X_train=None, y_train=None, X_test
     epochs = epochs
     vector_embedding_dim = X_train[0].shape[1]
     hidden_dim = hidden_dim
-    count_type_size = 7
+    count_type_size = 267
     accumulate_grad_steps = 70
 
     model = LSTM_Tagger(vector_embedding_dim, hidden_dim, count_type_size)
@@ -204,6 +204,11 @@ def LSTM_error_rate_per_borough(model):
         plt.show()
         print('Accuracy for ',borough,': ',1-error_rate)
 
+        plt.bar(np.arange(1, 25), error_rate)
+        plt.xticks(np.arange(1, 25))
+        plt.title('LSTM Error Distribution - hourly for ' + str(boroughs_dict[int(borough)]))
+        plt.show()
+
 
 if __name__ == '__main__':
     X_train, y_train, X_test_and_validation, y_test_and_validation = prepare_grouped_data_creative(scale=False)
@@ -211,10 +216,10 @@ if __name__ == '__main__':
 
     print('Validation started')
     best_acc = 0
-    #hidden_dim = 50
-    #epochs = 40
-    hidden_dim = 1
-    epochs = 1
+    hidden_dim = 50
+    epochs = 40
+    #hidden_dim = 1
+    #epochs = 1
 
     print('---------------------------')
     print(f'Hidden dim: {hidden_dim}')
